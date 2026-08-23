@@ -73,7 +73,36 @@ def save_lead(new_lead):
     except Exception as e:
         st.error(f"Could not save lead: {e}")
         return False
+def update_lead_status(lead_id, new_status):
+    try:
+        (
+            supabase
+            .table("leads")
+            .update({"status": new_status})
+            .eq("id", int(lead_id))
+            .execute()
+        )
+        return True
 
+    except Exception as e:
+        st.error(f"Could not update lead: {e}")
+        return False
+
+
+def delete_lead(lead_id):
+    try:
+        (
+            supabase
+            .table("leads")
+            .delete()
+            .eq("id", int(lead_id))
+            .execute()
+        )
+        return True
+
+    except Exception as e:
+        st.error(f"Could not delete lead: {e}")
+        return False
 
 # -----------------------------
 # LEAD SCORING
@@ -134,6 +163,7 @@ page = st.sidebar.radio(
         "Dashboard",
         "Add Lead",
         "Lead Database",
+        "Manage Leads"
         "Sales Pipeline"
     ]
 )
@@ -365,7 +395,116 @@ elif page == "Lead Database":
 # -----------------------------
 # SALES PIPELINE
 # -----------------------------
+elif page == "Manage Leads":
 
+    st.header("Manage Leads")
+
+    leads = load_leads()
+
+    if len(leads) == 0:
+        st.info("No leads available to manage.")
+
+    else:
+        lead_options = {
+            f"{row['name']} — {row['company']} — ID {row['id']}": row["id"]
+            for _, row in leads.iterrows()
+        }
+
+        selected_label = st.selectbox(
+            "Select Lead",
+            list(lead_options.keys())
+        )
+
+        selected_id = lead_options[selected_label]
+
+        selected_lead = leads[
+            leads["id"] == selected_id
+        ].iloc[0]
+
+        st.subheader(selected_lead["name"])
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write(f"**Company:** {selected_lead['company']}")
+            st.write(f"**Email:** {selected_lead['email']}")
+            st.write(f"**Phone:** {selected_lead['phone']}")
+            st.write(f"**Source:** {selected_lead['source']}")
+
+        with col2:
+            st.write(
+                f"**Budget:** ₹{float(selected_lead['budget']):,.0f}"
+            )
+            st.write(
+                f"**Interest:** {selected_lead['interest']}/10"
+            )
+            st.write(
+                f"**Score:** {selected_lead['score']}/100"
+            )
+            st.write(
+                f"**Category:** {selected_lead['category']}"
+            )
+
+        st.divider()
+
+        st.subheader("Update Lead Status")
+
+        status_options = [
+            "New",
+            "Contacted",
+            "Negotiation",
+            "Closed"
+        ]
+
+        current_status = selected_lead["status"]
+
+        current_index = (
+            status_options.index(current_status)
+            if current_status in status_options
+            else 0
+        )
+
+        new_status = st.selectbox(
+            "Lead Status",
+            status_options,
+            index=current_index
+        )
+
+        if st.button("Update Status"):
+
+            success = update_lead_status(
+                selected_id,
+                new_status
+            )
+
+            if success:
+                st.success(
+                    f"Status updated to {new_status}."
+                )
+                st.rerun()
+
+        st.divider()
+
+        st.subheader("Delete Lead")
+
+        confirm_delete = st.checkbox(
+            "I understand this will permanently delete this lead."
+        )
+
+        if st.button(
+            "Delete Lead",
+            disabled=not confirm_delete
+        ):
+
+            success = delete_lead(
+                selected_id
+            )
+
+            if success:
+                st.success(
+                    "Lead deleted successfully."
+                )
+                st.rerun()
 elif page == "Sales Pipeline":
 
     st.header("Sales Pipeline")
