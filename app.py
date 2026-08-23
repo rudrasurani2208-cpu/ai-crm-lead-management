@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import os
+from supabase import create_client, Client
 
 st.set_page_config(
     page_title="AI CRM & Lead Management",
@@ -8,38 +8,84 @@ st.set_page_config(
     layout="wide"
 )
 
-DATA_FILE = "leads.csv"
+# -----------------------------
+# SUPABASE CONNECTION
+# -----------------------------
 
-# Create CSV file if it doesn't exist
-if not os.path.exists(DATA_FILE):
-    df = pd.DataFrame(
-        columns=[
-            "name",
-            "email",
-            "phone",
-            "company",
-            "source",
-            "budget",
-            "interest",
-            "status",
-            "score",
-            "category"
-        ]
-    )
-    df.to_csv(DATA_FILE, index=False)
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
+
+@st.cache_resource
+def init_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+supabase: Client = init_supabase()
+
+
+# -----------------------------
+# DATABASE FUNCTIONS
+# -----------------------------
 
 def load_leads():
-    return pd.read_csv(DATA_FILE)
+    try:
+        response = (
+            supabase
+            .table("leads")
+            .select("*")
+            .order("created_at", desc=True)
+            .execute()
+        )
 
+        data = response.data
+
+        if not data:
+            return pd.DataFrame(
+                columns=[
+                    "id",
+                    "created_at",
+                    "name",
+                    "email",
+                    "phone",
+                    "company",
+                    "source",
+                    "budget",
+                    "interest",
+                    "status",
+                    "score",
+                    "category"
+                ]
+            )
+
+        return pd.DataFrame(data)
+
+    except Exception as e:
+        st.error(f"Database error: {e}")
+        return pd.DataFrame()
+
+
+def save_lead(new_lead):
+    try:
+        supabase.table("leads").insert(new_lead).execute()
+        return True
+
+    except Exception as e:
+        st.error(f"Could not save lead: {e}")
+        return False
+
+
+# -----------------------------
+# LEAD SCORING
+# -----------------------------
 
 def calculate_lead_score(budget, interest, source):
     score = 0
 
-    # Interest score - max 50
+    # Interest = maximum 50 points
     score += interest * 5
 
-    # Budget score - max 30
+    # Budget = maximum 30 points
     if budget >= 100000:
         score += 30
     elif budget >= 50000:
@@ -47,7 +93,7 @@ def calculate_lead_score(budget, interest, source):
     elif budget >= 20000:
         score += 10
 
-    # Source score - max 20
+    # Source = maximum 20 points
     source_points = {
         "Referral": 20,
         "LinkedIn": 15,
@@ -69,13 +115,12 @@ def calculate_lead_score(budget, interest, source):
     return score, category
 
 
-def save_lead(new_lead):
-    df = load_leads()
-    df = pd.concat([df, pd.DataFrame([new_lead])], ignore_index=True)
-    df.to_csv(DATA_FILE, index=False)
-
+# -----------------------------
+# APP HEADER
+# -----------------------------
 
 st.title("📊 AI CRM & Lead Management System")
+
 st.write(
     "Manage leads, track sales opportunities, "
     "and prioritize customers using AI-based lead scoring."
@@ -93,6 +138,11 @@ page = st.sidebar.radio(
     ]
 )
 
+
+# -----------------------------
+# DASHBOARD
+# -----------------------------
+
 if page == "Dashboard":
 
     st.header("Dashboard")
@@ -101,35 +151,78 @@ if page == "Dashboard":
 
     total_leads = len(leads)
 
-    hot_leads = len(
-        leads[leads["category"] == "Hot 🔥"]
-    ) if total_leads > 0 and "category" in leads.columns else 0
+    if total_leads > 0:
 
-    converted_leads = len(
-        leads[leads["status"] == "Closed"]
-    ) if total_leads > 0 else 0
+        hot_leads = len(
+            leads[leads["category"] == "Hot 🔥"]
+        )
 
-    conversion_rate = (
-        (converted_leads / total_leads) * 100
-        if total_leads > 0
-        else 0
-    )
+        converted_leads = len(
+            leads[leads["status"] == "Closed"]
+        )
+
+        conversion_rate = (
+            converted_leads / total_leads
+        ) * 100
+
+    else:
+
+        hot_leads = 0
+        converted_leads = 0
+        conversion_rate = 0
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Total Leads", total_leads)
-    col2.metric("Hot Leads", hot_leads)
-    col3.metric("Converted Leads", converted_leads)
-    col4.metric("Conversion Rate", f"{conversion_rate:.1f}%")
+    col1.metric(
+        "Total Leads",
+        total_leads
+    )
+
+    col2.metric(
+        "Hot Leads",
+        hot_leads
+    )
+
+    col3.metric(
+        "Converted Leads",
+        converted_leads
+    )
+
+    col4.metric(
+        "Conversion Rate",
+        f"{conversion_rate:.1f}%"
+    )
 
     if total_leads == 0:
-        st.info("Add your first lead to start seeing analytics.")
+
+        st.info(
+            "Add your first lead to start seeing analytics."
+        )
 
     else:
+
         st.subheader("Lead Sources")
-        source_data = leads["source"].value_counts()
+
+        source_data = (
+            leads["source"]
+            .value_counts()
+        )
+
         st.bar_chart(source_data)
 
+        st.subheader("Lead Categories")
+
+        category_data = (
+            leads["category"]
+            .value_counts()
+        )
+
+        st.bar_chart(category_data)
+
+
+# -----------------------------
+# ADD LEAD
+# -----------------------------
 
 elif page == "Add Lead":
 
@@ -137,10 +230,21 @@ elif page == "Add Lead":
 
     with st.form("lead_form"):
 
-        name = st.text_input("Customer Name")
-        email = st.text_input("Email")
-        phone = st.text_input("Phone Number")
-        company = st.text_input("Company")
+        name = st.text_input(
+            "Customer Name"
+        )
+
+        email = st.text_input(
+            "Email"
+        )
+
+        phone = st.text_input(
+            "Phone Number"
+        )
+
+        company = st.text_input(
+            "Company"
+        )
 
         source = st.selectbox(
             "Lead Source",
@@ -177,12 +281,17 @@ elif page == "Add Lead":
             ]
         )
 
-        submitted = st.form_submit_button("Add Lead")
+        submitted = st.form_submit_button(
+            "Add Lead"
+        )
 
         if submitted:
 
             if name.strip() == "":
-                st.error("Please enter the customer's name.")
+
+                st.error(
+                    "Please enter the customer's name."
+                )
 
             else:
 
@@ -205,13 +314,21 @@ elif page == "Add Lead":
                     "category": category
                 }
 
-                save_lead(new_lead)
-
-                st.success(
-                    f"Lead '{name}' added successfully! "
-                    f"Score: {score}/100 — {category}"
+                success = save_lead(
+                    new_lead
                 )
 
+                if success:
+
+                    st.success(
+                        f"Lead '{name}' added successfully! "
+                        f"Score: {score}/100 — {category}"
+                    )
+
+
+# -----------------------------
+# LEAD DATABASE
+# -----------------------------
 
 elif page == "Lead Database":
 
@@ -221,26 +338,33 @@ elif page == "Lead Database":
 
     if len(leads) == 0:
 
-        st.info("No leads have been added yet.")
+        st.info(
+            "No leads have been added yet."
+        )
 
     else:
 
+        display_columns = [
+            "name",
+            "company",
+            "source",
+            "budget",
+            "interest",
+            "score",
+            "category",
+            "status"
+        ]
+
         st.dataframe(
-            leads[
-                [
-                    "name",
-                    "company",
-                    "source",
-                    "budget",
-                    "interest",
-                    "score",
-                    "category",
-                    "status"
-                ]
-            ],
-            use_container_width=True
+            leads[display_columns],
+            use_container_width=True,
+            hide_index=True
         )
 
+
+# -----------------------------
+# SALES PIPELINE
+# -----------------------------
 
 elif page == "Sales Pipeline":
 
@@ -263,13 +387,23 @@ elif page == "Sales Pipeline":
 
             st.subheader(stage)
 
+            if len(leads) == 0:
+
+                st.caption(
+                    "No leads"
+                )
+
+                continue
+
             stage_leads = leads[
                 leads["status"] == stage
             ]
 
             if len(stage_leads) == 0:
 
-                st.caption("No leads")
+                st.caption(
+                    "No leads"
+                )
 
             else:
 
@@ -281,7 +415,7 @@ elif page == "Sales Pipeline":
 
                         {lead['company']}
 
-                        Budget: ₹{lead['budget']:,.0f}
+                        Budget: ₹{float(lead['budget']):,.0f}
 
                         Interest: {lead['interest']}/10
 
