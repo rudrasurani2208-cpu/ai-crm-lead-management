@@ -21,7 +21,9 @@ if not os.path.exists(DATA_FILE):
             "source",
             "budget",
             "interest",
-            "status"
+            "status",
+            "score",
+            "category"
         ]
     )
     df.to_csv(DATA_FILE, index=False)
@@ -29,6 +31,42 @@ if not os.path.exists(DATA_FILE):
 
 def load_leads():
     return pd.read_csv(DATA_FILE)
+
+
+def calculate_lead_score(budget, interest, source):
+    score = 0
+
+    # Interest score - max 50
+    score += interest * 5
+
+    # Budget score - max 30
+    if budget >= 100000:
+        score += 30
+    elif budget >= 50000:
+        score += 20
+    elif budget >= 20000:
+        score += 10
+
+    # Source score - max 20
+    source_points = {
+        "Referral": 20,
+        "LinkedIn": 15,
+        "Website": 15,
+        "Instagram": 10,
+        "Cold Call": 5,
+        "Other": 5
+    }
+
+    score += source_points.get(source, 0)
+
+    if score >= 75:
+        category = "Hot 🔥"
+    elif score >= 50:
+        category = "Warm 🟡"
+    else:
+        category = "Cold ❄️"
+
+    return score, category
 
 
 def save_lead(new_lead):
@@ -64,8 +102,8 @@ if page == "Dashboard":
     total_leads = len(leads)
 
     hot_leads = len(
-        leads[leads["interest"] >= 8]
-    ) if total_leads > 0 else 0
+        leads[leads["category"] == "Hot 🔥"]
+    ) if total_leads > 0 and "category" in leads.columns else 0
 
     converted_leads = len(
         leads[leads["status"] == "Closed"]
@@ -89,9 +127,7 @@ if page == "Dashboard":
 
     else:
         st.subheader("Lead Sources")
-
         source_data = leads["source"].value_counts()
-
         st.bar_chart(source_data)
 
 
@@ -102,11 +138,8 @@ elif page == "Add Lead":
     with st.form("lead_form"):
 
         name = st.text_input("Customer Name")
-
         email = st.text_input("Email")
-
         phone = st.text_input("Phone Number")
-
         company = st.text_input("Company")
 
         source = st.selectbox(
@@ -153,6 +186,12 @@ elif page == "Add Lead":
 
             else:
 
+                score, category = calculate_lead_score(
+                    budget,
+                    interest,
+                    source
+                )
+
                 new_lead = {
                     "name": name,
                     "email": email,
@@ -161,13 +200,16 @@ elif page == "Add Lead":
                     "source": source,
                     "budget": budget,
                     "interest": interest,
-                    "status": status
+                    "status": status,
+                    "score": score,
+                    "category": category
                 }
 
                 save_lead(new_lead)
 
                 st.success(
-                    f"Lead '{name}' added successfully!"
+                    f"Lead '{name}' added successfully! "
+                    f"Score: {score}/100 — {category}"
                 )
 
 
@@ -184,7 +226,18 @@ elif page == "Lead Database":
     else:
 
         st.dataframe(
-            leads,
+            leads[
+                [
+                    "name",
+                    "company",
+                    "source",
+                    "budget",
+                    "interest",
+                    "score",
+                    "category",
+                    "status"
+                ]
+            ],
             use_container_width=True
         )
 
@@ -231,6 +284,10 @@ elif page == "Sales Pipeline":
                         Budget: ₹{lead['budget']:,.0f}
 
                         Interest: {lead['interest']}/10
+
+                        Score: {lead['score']}/100
+
+                        {lead['category']}
                         """
                     )
 
