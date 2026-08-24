@@ -163,7 +163,7 @@ page = st.sidebar.radio(
         "Dashboard",
         "Add Lead",
         "Lead Database",
-        "Manage Leads"
+        "Manage Leads",
         "Sales Pipeline"
     ]
 )
