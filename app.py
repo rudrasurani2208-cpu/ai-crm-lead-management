@@ -463,6 +463,7 @@ elif page == "Manage Leads":
 
         st.divider()
 
+        # Update Status
         st.subheader("Update Lead Status")
 
         status_options = [
@@ -487,31 +488,29 @@ elif page == "Manage Leads":
         )
 
         if st.button("Update Status"):
-
             success = update_lead_status(
                 selected_id,
                 new_status
             )
 
             if success:
-                st.success(
-                    f"Status updated to {new_status}."
-                )
+                st.success(f"Status updated to {new_status}.")
                 st.rerun()
 
         st.divider()
-st.subheader("Follow-up & Notes")
-st.subheader("Follow-up & Notes")
+
+        # Follow-up and Notes
+        st.subheader("Follow-up & Notes")
 
         existing_date = selected_lead.get("follow_up_date")
 
-        if existing_date:
+        if existing_date and not pd.isna(existing_date):
             try:
                 default_followup = datetime.strptime(
                     str(existing_date),
                     "%Y-%m-%d"
                 ).date()
-            except:
+            except ValueError:
                 default_followup = date.today()
         else:
             default_followup = date.today()
@@ -547,9 +546,8 @@ st.subheader("Follow-up & Notes")
 
         st.divider()
 
+        # Delete Lead
         st.subheader("Delete Lead")
- 
-
 
         confirm_delete = st.checkbox(
             "I understand this will permanently delete this lead."
@@ -559,15 +557,10 @@ st.subheader("Follow-up & Notes")
             "Delete Lead",
             disabled=not confirm_delete
         ):
-
-            success = delete_lead(
-                selected_id
-            )
+            success = delete_lead(selected_id)
 
             if success:
-                st.success(
-                    "Lead deleted successfully."
-                )
+                st.success("Lead deleted successfully.")
                 st.rerun()
 elif page == "Sales Pipeline":
 
