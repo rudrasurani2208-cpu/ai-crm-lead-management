@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-
+from datetime import date, datetime
 st.set_page_config(
     page_title="AI CRM & Lead Management",
     page_icon="📊",
