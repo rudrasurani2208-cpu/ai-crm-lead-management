@@ -188,9 +188,8 @@ page = st.sidebar.radio(
 # -----------------------------
 # DASHBOARD
 # -----------------------------
-
 if page == "Dashboard":
-    
+
     st.header("Dashboard")
 
     leads = load_leads()
@@ -198,7 +197,6 @@ if page == "Dashboard":
     total_leads = len(leads)
 
     if total_leads > 0:
-
         hot_leads = len(
             leads[leads["category"] == "Hot 🔥"]
         )
@@ -212,64 +210,37 @@ if page == "Dashboard":
         ) * 100
 
     else:
-
         hot_leads = 0
         converted_leads = 0
         conversion_rate = 0
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric(
-        "Total Leads",
-        total_leads
-    )
-
-    col2.metric(
-        "Hot Leads",
-        hot_leads
-    )
-
-    col3.metric(
-        "Converted Leads",
-        converted_leads
-    )
-
+    col1.metric("Total Leads", total_leads)
+    col2.metric("Hot Leads", hot_leads)
+    col3.metric("Converted Leads", converted_leads)
     col4.metric(
         "Conversion Rate",
         f"{conversion_rate:.1f}%"
     )
 
     if total_leads == 0:
-
         st.info(
             "Add your first lead to start seeing analytics."
         )
 
     else:
-
         st.subheader("Lead Sources")
 
-        source_data = (
-            leads["source"]
-            .value_counts()
-        )
-
+        source_data = leads["source"].value_counts()
         st.bar_chart(source_data)
 
         st.subheader("Lead Categories")
 
-        category_data = (
-            leads["category"]
-            .value_counts()
-        )
-
+        category_data = leads["category"].value_counts()
         st.bar_chart(category_data)
 
-
-# -----------------------------
-# ADD LEAD
-# -----------------------------
-st.subheader("📅 Upcoming Follow-ups")
+    st.subheader("📅 Upcoming Follow-ups")
 
     if total_leads > 0 and "follow_up_date" in leads.columns:
 
@@ -310,106 +281,9 @@ st.subheader("📅 Upcoming Follow-ups")
                     f"{lead['follow_up_date'].date()} — "
                     f"**{timing}**"
                 )
-elif page == "Add Lead":
 
-    st.header("Add New Lead")
-
-    with st.form("lead_form"):
-
-        name = st.text_input(
-            "Customer Name"
-        )
-
-        email = st.text_input(
-            "Email"
-        )
-
-        phone = st.text_input(
-            "Phone Number"
-        )
-
-        company = st.text_input(
-            "Company"
-        )
-
-        source = st.selectbox(
-            "Lead Source",
-            [
-                "Website",
-                "Instagram",
-                "LinkedIn",
-                "Referral",
-                "Cold Call",
-                "Other"
-            ]
-        )
-
-        budget = st.number_input(
-            "Estimated Budget",
-            min_value=0.0,
-            step=1000.0
-        )
-
-        interest = st.slider(
-            "Interest Level",
-            1,
-            10,
-            5
-        )
-
-        status = st.selectbox(
-            "Lead Status",
-            [
-                "New",
-                "Contacted",
-                "Negotiation",
-                "Closed"
-            ]
-        )
-
-        submitted = st.form_submit_button(
-            "Add Lead"
-        )
-
-        if submitted:
-
-            if name.strip() == "":
-
-                st.error(
-                    "Please enter the customer's name."
-                )
-
-            else:
-
-                score, category = calculate_lead_score(
-                    budget,
-                    interest,
-                    source
-                )
-
-                new_lead = {
-                    "name": name,
-                    "email": email,
-                    "phone": phone,
-                    "company": company,
-                    "source": source,
-                    "budget": budget,
-                    "interest": interest,
-                    "status": status,
-                    "score": score,
-                    "category": category
-                }
-
-                success = save_lead(
-                    new_lead
-                )
-
-                if success:
-
-                    st.success(
-                        f"Lead '{name}' added successfully! "
-                        f"Score: {score}/100 — {category}"
-                    )
+    else:
+        st.info("No upcoming follow-ups.")
 
 
 # -----------------------------
