@@ -103,7 +103,23 @@ def delete_lead(lead_id):
     except Exception as e:
         st.error(f"Could not delete lead: {e}")
         return False
+def update_followup_notes(lead_id, follow_up_date, notes):
+    try:
+        (
+            supabase
+            .table("leads")
+            .update({
+                "follow_up_date": str(follow_up_date),
+                "notes": notes
+            })
+            .eq("id", int(lead_id))
+            .execute()
+        )
+        return True
 
+    except Exception as e:
+        st.error(f"Could not update follow-up details: {e}")
+        return False
 # -----------------------------
 # LEAD SCORING
 # -----------------------------
@@ -484,7 +500,52 @@ elif page == "Manage Leads":
                 st.rerun()
 
         st.divider()
+st.subheader("Follow-up & Notes")
 
+        existing_date = selected_lead.get("follow_up_date")
+
+        if existing_date:
+            try:
+                default_followup = datetime.strptime(
+                    str(existing_date),
+                    "%Y-%m-%d"
+                ).date()
+            except:
+                default_followup = date.today()
+        else:
+            default_followup = date.today()
+
+        follow_up_date = st.date_input(
+            "Follow-up Date",
+            value=default_followup
+        )
+
+        existing_notes = selected_lead.get("notes")
+
+        if pd.isna(existing_notes):
+            existing_notes = ""
+
+        notes = st.text_area(
+            "Notes",
+            value=str(existing_notes),
+            placeholder="Add conversation notes, next steps, customer requirements..."
+        )
+
+        if st.button("Save Follow-up Details"):
+
+            success = update_followup_notes(
+                selected_id,
+                follow_up_date,
+                notes
+            )
+
+            if success:
+                st.success(
+                    "Follow-up date and notes saved successfully."
+                )
+                st.rerun()
+
+        st.divider()
         st.subheader("Delete Lead")
 
         confirm_delete = st.checkbox(
