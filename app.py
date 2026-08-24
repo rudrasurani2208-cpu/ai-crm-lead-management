@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import joblib
 from supabase import create_client, Client
 from datetime import date, datetime
 st.set_page_config(
@@ -22,8 +23,31 @@ def init_supabase():
 
 
 supabase: Client = init_supabase()
+@st.cache_resource
+def load_ml_model():
+    try:
+        return joblib.load("lead_conversion_model.pkl")
+    except Exception as e:
+        st.error(f"Could not load ML model: {e}")
+        return None
 
 
+ml_model = load_ml_model()
+def predict_conversion_probability(budget, interest, source):
+    if ml_model is None:
+        return None
+
+    input_data = pd.DataFrame(
+        [{
+            "budget": float(budget),
+            "interest": int(interest),
+            "source": str(source)
+        }]
+    )
+
+    probability = ml_model.predict_proba(input_data)[0][1]
+
+    return probability * 100
 # -----------------------------
 # DATABASE FUNCTIONS
 # -----------------------------
@@ -453,7 +477,21 @@ elif page == "Manage Leads":
             st.write(
                 f"**Category:** {selected_lead['category']}"
             )
+conversion_probability = predict_conversion_probability(
+            selected_lead["budget"],
+            selected_lead["interest"],
+            selected_lead["source"]
+        )
 
+        if conversion_probability is not None:
+            st.metric(
+                "🤖 ML Conversion Probability",
+                f"{conversion_probability:.1f}%"
+            )
+
+            st.caption(
+                "Demo prediction trained on synthetic historical lead data."
+            )
         st.divider()
 
         # Update Status
