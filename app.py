@@ -501,6 +501,7 @@ elif page == "Manage Leads":
 
         st.divider()
 st.subheader("Follow-up & Notes")
+st.subheader("Follow-up & Notes")
 
         existing_date = selected_lead.get("follow_up_date")
 
@@ -532,7 +533,6 @@ st.subheader("Follow-up & Notes")
         )
 
         if st.button("Save Follow-up Details"):
-
             success = update_followup_notes(
                 selected_id,
                 follow_up_date,
@@ -546,7 +546,10 @@ st.subheader("Follow-up & Notes")
                 st.rerun()
 
         st.divider()
+
         st.subheader("Delete Lead")
+ 
+
 
         confirm_delete = st.checkbox(
             "I understand this will permanently delete this lead."
