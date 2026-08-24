@@ -375,7 +375,6 @@ elif page == "Add Lead":
 # -----------------------------
 # LEAD DATABASE
 # -----------------------------
-
 elif page == "Lead Database":
 
     st.header("Lead Database")
@@ -383,12 +382,91 @@ elif page == "Lead Database":
     leads = load_leads()
 
     if len(leads) == 0:
-
-        st.info(
-            "No leads have been added yet."
-        )
+        st.info("No leads have been added yet.")
 
     else:
+        st.subheader("Search & Filters")
+
+        search = st.text_input(
+            "Search by customer name or company",
+            placeholder="Type a name or company..."
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            status_filter = st.selectbox(
+                "Status",
+                [
+                    "All",
+                    "New",
+                    "Contacted",
+                    "Negotiation",
+                    "Closed"
+                ]
+            )
+
+        with col2:
+            category_filter = st.selectbox(
+                "Category",
+                [
+                    "All",
+                    "Hot 🔥",
+                    "Warm 🟡",
+                    "Cold ❄️"
+                ]
+            )
+
+        with col3:
+            source_filter = st.selectbox(
+                "Lead Source",
+                [
+                    "All",
+                    "Website",
+                    "Instagram",
+                    "LinkedIn",
+                    "Referral",
+                    "Cold Call",
+                    "Other"
+                ]
+            )
+
+        filtered_leads = leads.copy()
+
+        if search:
+            search_lower = search.lower()
+
+            filtered_leads = filtered_leads[
+                filtered_leads["name"]
+                .fillna("")
+                .str.lower()
+                .str.contains(search_lower, regex=False)
+                |
+                filtered_leads["company"]
+                .fillna("")
+                .str.lower()
+                .str.contains(search_lower, regex=False)
+            ]
+
+        if status_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["status"] == status_filter
+            ]
+
+        if category_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["category"] == category_filter
+            ]
+
+        if source_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["source"] == source_filter
+            ]
+
+        st.write(
+            f"Showing **{len(filtered_leads)}** of "
+            f"**{len(leads)}** leads"
+        )
 
         display_columns = [
             "name",
@@ -398,15 +476,16 @@ elif page == "Lead Database":
             "interest",
             "score",
             "category",
-            "status"
+            "status",
+            "follow_up_date",
+            "notes"
         ]
 
         st.dataframe(
-            leads[display_columns],
+            filtered_leads[display_columns],
             use_container_width=True,
             hide_index=True
         )
-
 
 # -----------------------------
 # SALES PIPELINE
