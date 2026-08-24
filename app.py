@@ -190,7 +190,7 @@ page = st.sidebar.radio(
 # -----------------------------
 
 if page == "Dashboard":
-
+    
     st.header("Dashboard")
 
     leads = load_leads()
@@ -269,7 +269,47 @@ if page == "Dashboard":
 # -----------------------------
 # ADD LEAD
 # -----------------------------
+st.subheader("📅 Upcoming Follow-ups")
 
+    if total_leads > 0 and "follow_up_date" in leads.columns:
+
+        followups = leads.copy()
+
+        followups["follow_up_date"] = pd.to_datetime(
+            followups["follow_up_date"],
+            errors="coerce"
+        )
+
+        today = pd.Timestamp(date.today())
+
+        upcoming = followups[
+            followups["follow_up_date"].notna()
+            & (followups["follow_up_date"] >= today)
+        ].sort_values("follow_up_date")
+
+        if len(upcoming) == 0:
+            st.info("No upcoming follow-ups.")
+
+        else:
+            for _, lead in upcoming.head(5).iterrows():
+
+                days_left = (
+                    lead["follow_up_date"] - today
+                ).days
+
+                if days_left == 0:
+                    timing = "Today 🔴"
+                elif days_left == 1:
+                    timing = "Tomorrow 🟠"
+                else:
+                    timing = f"In {days_left} days"
+
+                st.write(
+                    f"**{lead['name']}** — "
+                    f"{lead['company']} — "
+                    f"{lead['follow_up_date'].date()} — "
+                    f"**{timing}**"
+                )
 elif page == "Add Lead":
 
     st.header("Add New Lead")
