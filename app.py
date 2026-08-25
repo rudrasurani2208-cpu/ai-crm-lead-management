@@ -371,7 +371,7 @@ elif page == "Lead Database":
 
 filtered_leads = leads.copy()
 
-        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
+filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
             lambda row: predict_conversion_probability(
                 row["budget"],
                 row["interest"],
@@ -379,15 +379,14 @@ filtered_leads = leads.copy()
             ),
             axis=1
         )
-
-        filtered_leads["ml_conversion_probability"] = (
+filtered_leads["ml_conversion_probability"] = (
             filtered_leads["ml_conversion_probability"]
             .round(1)
             .astype(str)
             + "%"
         )
 
-        if search:
+if search:
             search_lower = search.lower()
 
             filtered_leads = filtered_leads[
@@ -402,17 +401,17 @@ filtered_leads = leads.copy()
                 .str.contains(search_lower, regex=False)
             ]
 
-        if status_filter != "All":
+if status_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["status"] == status_filter
             ]
 
-        if category_filter != "All":
+if category_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["category"] == category_filter
             ]
 
-        if source_filter != "All":
+if source_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["source"] == source_filter
             ]
