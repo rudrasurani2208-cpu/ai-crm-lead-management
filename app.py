@@ -369,8 +369,9 @@ elif page == "Lead Database":
                 ]
             )
 
-        filtered_leads = leads.copy()
-filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
+filtered_leads = leads.copy()
+
+        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
             lambda row: predict_conversion_probability(
                 row["budget"],
                 row["interest"],
@@ -379,129 +380,11 @@ filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
             axis=1
         )
 
-            filtered_leads["ml_conversion_probability"] = (
+        filtered_leads["ml_conversion_probability"] = (
             filtered_leads["ml_conversion_probability"]
             .round(1)
             .astype(str)
             + "%"
-        )
-            if search:
-            filtered_leads = leads.copy()
-
-        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
-            lambda row: predict_conversion_probability(
-                row["budget"],
-                row["interest"],
-                row["source"]
-            ),
-            axis=1
-        )
-
-        filtered_leads["ml_conversion_probability"] = (
-            filtered_leads["ml_conversion_probability"].apply(
-                lambda value: f"{value:.1f}%" if value is not None else "N/A"
-            )
-        )
-        display_columns = [
-            "name",
-            "company",
-            "source",
-            "budget",
-            "interest",
-            "score",
-            "category",
-            "ml_conversion_probability",
-            "status",
-            "follow_up_date",
-            "notes"
-        ]
-
-        st.dataframe(
-            filtered_leads[display_columns],
-            use_container_width=True,
-            hide_index=True
-        )
-
-# -----------------------------
-# SALES PIPELINE
-# -----------------------------
-elif page == "Manage Leads":
-
-    elif page == "Lead Database":
-
-    st.header("Lead Database")
-
-    leads = load_leads()
-
-    if len(leads) == 0:
-        st.info("No leads have been added yet.")
-
-    else:
-        st.subheader("Search & Filters")
-
-        search = st.text_input(
-            "Search by customer name or company",
-            placeholder="Type a name or company..."
-        )
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            status_filter = st.selectbox(
-                "Status",
-                [
-                    "All",
-                    "New",
-                    "Contacted",
-                    "Negotiation",
-                    "Closed"
-                ]
-            )
-
-        with col2:
-            category_filter = st.selectbox(
-                "Category",
-                [
-                    "All",
-                    "Hot 🔥",
-                    "Warm 🟡",
-                    "Cold ❄️"
-                ]
-            )
-
-        with col3:
-            source_filter = st.selectbox(
-                "Lead Source",
-                [
-                    "All",
-                    "Website",
-                    "Instagram",
-                    "LinkedIn",
-                    "Referral",
-                    "Cold Call",
-                    "Other"
-                ]
-            )
-
-        filtered_leads = leads.copy()
-
-        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
-            lambda row: predict_conversion_probability(
-                row["budget"],
-                row["interest"],
-                row["source"]
-            ),
-            axis=1
-        )
-
-        filtered_leads["ml_conversion_probability"] = (
-            filtered_leads["ml_conversion_probability"].apply(
-                lambda value: (
-                    f"{value:.1f}%"
-                    if value is not None
-                    else "N/A"
-                )
-            )
         )
 
         if search:
@@ -558,3 +441,272 @@ elif page == "Manage Leads":
             use_container_width=True,
             hide_index=True
         )
+elif page == "Manage Leads":
+
+    st.header("Manage Leads")
+
+    leads = load_leads()
+
+    if len(leads) == 0:
+        st.info("No leads available to manage.")
+
+    else:
+        lead_options = {
+            f"{row['name']} - {row['company']} - ID {row['id']}": row["id"]
+            for _, row in leads.iterrows()
+        }
+
+        selected_label = st.selectbox(
+            "Select Lead",
+            list(lead_options.keys())
+        )
+
+        selected_id = lead_options[selected_label]
+
+        selected_lead = leads[
+            leads["id"] == selected_id
+        ].iloc[0]
+
+        st.subheader(selected_lead["name"])
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write(
+                f"**Company:** {selected_lead['company']}"
+            )
+            st.write(
+                f"**Email:** {selected_lead['email']}"
+            )
+            st.write(
+                f"**Phone:** {selected_lead['phone']}"
+            )
+            st.write(
+                f"**Source:** {selected_lead['source']}"
+            )
+
+        with col2:
+            st.write(
+                f"**Budget:** ₹{float(selected_lead['budget']):,.0f}"
+            )
+            st.write(
+                f"**Interest:** {selected_lead['interest']}/10"
+            )
+            st.write(
+                f"**Score:** {selected_lead['score']}/100"
+            )
+            st.write(
+                f"**Category:** {selected_lead['category']}"
+            )
+
+        conversion_probability = predict_conversion_probability(
+            selected_lead["budget"],
+            selected_lead["interest"],
+            selected_lead["source"]
+        )
+
+        if conversion_probability is not None:
+            st.metric(
+                "🤖 ML Conversion Probability",
+                f"{conversion_probability:.1f}%"
+            )
+
+            st.caption(
+                "Demo prediction trained on synthetic historical lead data."
+            )
+
+        st.divider()
+
+        # Update Status
+        st.subheader("Update Lead Status")
+
+        status_options = [
+            "New",
+            "Contacted",
+            "Negotiation",
+            "Closed"
+        ]
+
+        current_status = selected_lead["status"]
+
+        current_index = (
+            status_options.index(current_status)
+            if current_status in status_options
+            else 0
+        )
+
+        new_status = st.selectbox(
+            "Lead Status",
+            status_options,
+            index=current_index
+        )
+
+        if st.button("Update Status"):
+
+            success = update_lead_status(
+                selected_id,
+                new_status
+            )
+
+            if success:
+                st.success(
+                    f"Status updated to {new_status}."
+                )
+                st.rerun()
+
+        st.divider()
+
+        # Follow-up and Notes
+        st.subheader("Follow-up & Notes")
+
+        existing_date = selected_lead.get(
+            "follow_up_date"
+        )
+
+        if existing_date and not pd.isna(existing_date):
+            parsed_date = pd.to_datetime(
+                existing_date,
+                errors="coerce"
+            )
+
+            if pd.notna(parsed_date):
+                default_followup = parsed_date.date()
+            else:
+                default_followup = date.today()
+        else:
+            default_followup = date.today()
+
+        follow_up_date = st.date_input(
+            "Follow-up Date",
+            value=default_followup
+        )
+
+        existing_notes = selected_lead.get(
+            "notes"
+        )
+
+        if pd.isna(existing_notes):
+            existing_notes = ""
+
+        notes = st.text_area(
+            "Notes",
+            value=str(existing_notes),
+            placeholder=(
+                "Add conversation notes, next steps, "
+                "customer requirements..."
+            )
+        )
+
+        if st.button("Save Follow-up Details"):
+
+            try:
+                (
+                    supabase
+                    .table("leads")
+                    .update(
+                        {
+                            "follow_up_date": str(
+                                follow_up_date
+                            ),
+                            "notes": notes
+                        }
+                    )
+                    .eq(
+                        "id",
+                        int(selected_id)
+                    )
+                    .execute()
+                )
+
+                st.success(
+                    "Follow-up date and notes saved successfully."
+                )
+
+                st.rerun()
+
+            except Exception as e:
+                st.error(
+                    f"Could not save follow-up details: {e}"
+                )
+
+        st.divider()
+
+        # Delete Lead
+        st.subheader("Delete Lead")
+
+        confirm_delete = st.checkbox(
+            "I understand this will permanently delete this lead."
+        )
+
+        if st.button(
+            "Delete Lead",
+            disabled=not confirm_delete
+        ):
+
+            success = delete_lead(
+                selected_id
+            )
+
+            if success:
+                st.success(
+                    "Lead deleted successfully."
+                )
+                st.rerun()
+
+
+elif page == "Sales Pipeline":
+
+    st.header("Sales Pipeline")
+
+    leads = load_leads()
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    stages = [
+        ("New", col1),
+        ("Contacted", col2),
+        ("Negotiation", col3),
+        ("Closed", col4)
+    ]
+
+    for stage, column in stages:
+
+        with column:
+
+            st.subheader(stage)
+
+            if len(leads) == 0:
+                st.caption("No leads")
+                continue
+
+            stage_leads = leads[
+                leads["status"] == stage
+            ]
+
+            if len(stage_leads) == 0:
+
+                st.caption("No leads")
+
+            else:
+
+                for _, lead in stage_leads.iterrows():
+
+                    st.markdown(
+                        f"""
+**{lead['name']}**
+
+{lead['company']}
+
+Budget: ₹{float(lead['budget']):,.0f}
+
+Interest: {lead['interest']}/10
+
+Score: {lead['score']}/100
+
+{lead['category']}
+"""
+                    )
+
+                    st.divider()
+
+        
