@@ -379,47 +379,29 @@ filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
             axis=1
         )
 
-        filtered_leads["ml_conversion_probability"] = (
+            filtered_leads["ml_conversion_probability"] = (
             filtered_leads["ml_conversion_probability"]
             .round(1)
             .astype(str)
             + "%"
         )
             if search:
-            search_lower = search.lower()
+            filtered_leads = leads.copy()
 
-            filtered_leads = filtered_leads[
-                filtered_leads["name"]
-                .fillna("")
-                .str.lower()
-                .str.contains(search_lower, regex=False)
-                |
-                filtered_leads["company"]
-                .fillna("")
-                .str.lower()
-                .str.contains(search_lower, regex=False)
-            ]
-
-            if status_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["status"] == status_filter
-            ]
-
-            if category_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["category"] == category_filter
-            ]
-
-        if source_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["source"] == source_filter
-            ]
-
-        st.write(
-            f"Showing **{len(filtered_leads)}** of "
-            f"**{len(leads)}** leads"
+        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
+            lambda row: predict_conversion_probability(
+                row["budget"],
+                row["interest"],
+                row["source"]
+            ),
+            axis=1
         )
 
+        filtered_leads["ml_conversion_probability"] = (
+            filtered_leads["ml_conversion_probability"].apply(
+                lambda value: f"{value:.1f}%" if value is not None else "N/A"
+            )
+        )
         display_columns = [
             "name",
             "company",
