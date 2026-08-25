@@ -477,13 +477,13 @@ elif page == "Manage Leads":
             st.write(
                 f"**Category:** {selected_lead['category']}"
             )
-conversion_probability = predict_conversion_probability(
+            conversion_probability = predict_conversion_probability(
             selected_lead["budget"],
             selected_lead["interest"],
             selected_lead["source"]
         )
 
-        if conversion_probability is not None:
+          if conversion_probability is not None:
             st.metric(
                 "🤖 ML Conversion Probability",
                 f"{conversion_probability:.1f}%"
