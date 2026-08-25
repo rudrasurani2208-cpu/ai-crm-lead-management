@@ -483,7 +483,7 @@ elif page == "Manage Leads":
             selected_lead["source"]
         )
 
-          if conversion_probability is not None:
+            if conversion_probability is not None:
             st.metric(
                 "🤖 ML Conversion Probability",
                 f"{conversion_probability:.1f}%"
