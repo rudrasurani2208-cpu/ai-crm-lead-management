@@ -370,7 +370,21 @@ elif page == "Lead Database":
             )
 
         filtered_leads = leads.copy()
+filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
+            lambda row: predict_conversion_probability(
+                row["budget"],
+                row["interest"],
+                row["source"]
+            ),
+            axis=1
+        )
 
+        filtered_leads["ml_conversion_probability"] = (
+            filtered_leads["ml_conversion_probability"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
         if search:
             search_lower = search.lower()
 
@@ -414,6 +428,7 @@ elif page == "Lead Database":
             "interest",
             "score",
             "category",
+            "ml_conversion_probability",
             "status",
             "follow_up_date",
             "notes"
