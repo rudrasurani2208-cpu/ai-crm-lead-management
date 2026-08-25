@@ -445,228 +445,134 @@ filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
 # -----------------------------
 elif page == "Manage Leads":
 
-    st.header("Manage Leads")
+    elif page == "Lead Database":
+
+    st.header("Lead Database")
 
     leads = load_leads()
 
     if len(leads) == 0:
-        st.info("No leads available to manage.")
+        st.info("No leads have been added yet.")
 
     else:
-        lead_options = {
-            f"{row['name']} — {row['company']} — ID {row['id']}": row["id"]
-            for _, row in leads.iterrows()
-        }
+        st.subheader("Search & Filters")
 
-        selected_label = st.selectbox(
-            "Select Lead",
-            list(lead_options.keys())
+        search = st.text_input(
+            "Search by customer name or company",
+            placeholder="Type a name or company..."
         )
 
-        selected_id = lead_options[selected_label]
-
-        selected_lead = leads[
-            leads["id"] == selected_id
-        ].iloc[0]
-
-        st.subheader(selected_lead["name"])
-
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.write(f"**Company:** {selected_lead['company']}")
-            st.write(f"**Email:** {selected_lead['email']}")
-            st.write(f"**Phone:** {selected_lead['phone']}")
-            st.write(f"**Source:** {selected_lead['source']}")
+            status_filter = st.selectbox(
+                "Status",
+                [
+                    "All",
+                    "New",
+                    "Contacted",
+                    "Negotiation",
+                    "Closed"
+                ]
+            )
 
         with col2:
-            st.write(
-                f"**Budget:** ₹{float(selected_lead['budget']):,.0f}"
+            category_filter = st.selectbox(
+                "Category",
+                [
+                    "All",
+                    "Hot 🔥",
+                    "Warm 🟡",
+                    "Cold ❄️"
+                ]
             )
-            st.write(
-                f"**Interest:** {selected_lead['interest']}/10"
+
+        with col3:
+            source_filter = st.selectbox(
+                "Lead Source",
+                [
+                    "All",
+                    "Website",
+                    "Instagram",
+                    "LinkedIn",
+                    "Referral",
+                    "Cold Call",
+                    "Other"
+                ]
             )
-            st.write(
-                f"**Score:** {selected_lead['score']}/100"
-            )
-            st.write(
-                f"**Category:** {selected_lead['category']}"
-            )
-            conversion_probability = predict_conversion_probability(
-            selected_lead["budget"],
-            selected_lead["interest"],
-            selected_lead["source"]
+
+        filtered_leads = leads.copy()
+
+        filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
+            lambda row: predict_conversion_probability(
+                row["budget"],
+                row["interest"],
+                row["source"]
+            ),
+            axis=1
         )
 
-            if conversion_probability is not None:
-                st.metric(
-                "🤖 ML Conversion Probability",
-                f"{conversion_probability:.1f}%"
+        filtered_leads["ml_conversion_probability"] = (
+            filtered_leads["ml_conversion_probability"].apply(
+                lambda value: (
+                    f"{value:.1f}%"
+                    if value is not None
+                    else "N/A"
                 )
-
-                st.caption(
-                    "Demo prediction trained on synthetic historical lead data."
-                )
-
-
-            st.divider()
-
-        # Update Status
-        st.subheader("Update Lead Status")
-
-        status_options = [
-            "New",
-            "Contacted",
-            "Negotiation",
-            "Closed"
-        ]
-
-        current_status = selected_lead["status"]
-
-        current_index = (
-            status_options.index(current_status)
-            if current_status in status_options
-            else 0
-        )
-
-        new_status = st.selectbox(
-            "Lead Status",
-            status_options,
-            index=current_index
-        )
-
-        if st.button("Update Status"):
-            success = update_lead_status(
-                selected_id,
-                new_status
             )
-
-            if success:
-                st.success(f"Status updated to {new_status}.")
-                st.rerun()
-
-        st.divider()
-
-        # Follow-up and Notes
-        st.subheader("Follow-up & Notes")
-
-        existing_date = selected_lead.get("follow_up_date")
-
-        if existing_date and not pd.isna(existing_date):
-            try:
-                default_followup = datetime.strptime(
-                    str(existing_date),
-                    "%Y-%m-%d"
-                ).date()
-            except ValueError:
-                default_followup = date.today()
-        else:
-            default_followup = date.today()
-
-        follow_up_date = st.date_input(
-            "Follow-up Date",
-            value=default_followup
         )
 
-        existing_notes = selected_lead.get("notes")
+        if search:
+            search_lower = search.lower()
 
-        if pd.isna(existing_notes):
-            existing_notes = ""
-
-        notes = st.text_area(
-            "Notes",
-            value=str(existing_notes),
-            placeholder="Add conversation notes, next steps, customer requirements..."
-        )
-
-        if st.button("Save Follow-up Details"):
-            success = update_followup_notes(
-                selected_id,
-                follow_up_date,
-                notes
-            )
-
-            if success:
-                st.success(
-                    "Follow-up date and notes saved successfully."
-                )
-                st.rerun()
-
-        st.divider()
-
-        # Delete Lead
-        st.subheader("Delete Lead")
-
-        confirm_delete = st.checkbox(
-            "I understand this will permanently delete this lead."
-        )
-
-        if st.button(
-            "Delete Lead",
-            disabled=not confirm_delete
-        ):
-            success = delete_lead(selected_id)
-
-            if success:
-                st.success("Lead deleted successfully.")
-                st.rerun()
-elif page == "Sales Pipeline":
-
-    st.header("Sales Pipeline")
-
-    leads = load_leads()
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    stages = [
-        ("New", col1),
-        ("Contacted", col2),
-        ("Negotiation", col3),
-        ("Closed", col4)
-    ]
-
-    for stage, column in stages:
-
-        with column:
-
-            st.subheader(stage)
-
-            if len(leads) == 0:
-
-                st.caption(
-                    "No leads"
-                )
-
-                continue
-
-            stage_leads = leads[
-                leads["status"] == stage
+            filtered_leads = filtered_leads[
+                filtered_leads["name"]
+                .fillna("")
+                .str.lower()
+                .str.contains(search_lower, regex=False)
+                |
+                filtered_leads["company"]
+                .fillna("")
+                .str.lower()
+                .str.contains(search_lower, regex=False)
             ]
 
-            if len(stage_leads) == 0:
+        if status_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["status"] == status_filter
+            ]
 
-                st.caption(
-                    "No leads"
-                )
+        if category_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["category"] == category_filter
+            ]
 
-            else:
+        if source_filter != "All":
+            filtered_leads = filtered_leads[
+                filtered_leads["source"] == source_filter
+            ]
 
-                for _, lead in stage_leads.iterrows():
+        st.write(
+            f"Showing **{len(filtered_leads)}** of "
+            f"**{len(leads)}** leads"
+        )
 
-                    st.markdown(
-                        f"""
-                        **{lead['name']}**
+        display_columns = [
+            "name",
+            "company",
+            "source",
+            "budget",
+            "interest",
+            "score",
+            "category",
+            "ml_conversion_probability",
+            "status",
+            "follow_up_date",
+            "notes"
+        ]
 
-                        {lead['company']}
-
-                        Budget: ₹{float(lead['budget']):,.0f}
-
-                        Interest: {lead['interest']}/10
-
-                        Score: {lead['score']}/100
-
-                        {lead['category']}
-                        """
-                    )
-
-                    st.divider()
+        st.dataframe(
+            filtered_leads[display_columns],
+            use_container_width=True,
+            hide_index=True
+        )
