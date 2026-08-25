@@ -484,15 +484,17 @@ elif page == "Manage Leads":
         )
 
             if conversion_probability is not None:
-            st.metric(
+                st.metric(
                 "🤖 ML Conversion Probability",
                 f"{conversion_probability:.1f}%"
-            )
+                )
 
-            st.caption(
-                "Demo prediction trained on synthetic historical lead data."
-            )
-        st.divider()
+                st.caption(
+                    "Demo prediction trained on synthetic historical lead data."
+                )
+
+
+            st.divider()
 
         # Update Status
         st.subheader("Update Lead Status")
