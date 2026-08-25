@@ -385,7 +385,7 @@ filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
             .astype(str)
             + "%"
         )
-        if search:
+            if search:
             search_lower = search.lower()
 
             filtered_leads = filtered_leads[
@@ -400,12 +400,12 @@ filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
                 .str.contains(search_lower, regex=False)
             ]
 
-        if status_filter != "All":
+            if status_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["status"] == status_filter
             ]
 
-        if category_filter != "All":
+            if category_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["category"] == category_filter
             ]
