@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 from supabase import create_client, Client
-from datetime import date, datetime
+from datetime import date
+
 st.set_page_config(
     page_title="AI CRM & Lead Management",
     page_icon="📊",
@@ -23,6 +24,12 @@ def init_supabase():
 
 
 supabase: Client = init_supabase()
+
+
+# -----------------------------
+# MACHINE LEARNING MODEL
+# -----------------------------
+
 @st.cache_resource
 def load_ml_model():
     try:
@@ -33,6 +40,8 @@ def load_ml_model():
 
 
 ml_model = load_ml_model()
+
+
 def predict_conversion_probability(budget, interest, source):
     if ml_model is None:
         return None
@@ -48,6 +57,8 @@ def predict_conversion_probability(budget, interest, source):
     probability = ml_model.predict_proba(input_data)[0][1]
 
     return probability * 100
+
+
 # -----------------------------
 # DATABASE FUNCTIONS
 # -----------------------------
@@ -78,7 +89,9 @@ def load_leads():
                     "interest",
                     "status",
                     "score",
-                    "category"
+                    "category",
+                    "follow_up_date",
+                    "notes"
                 ]
             )
 
@@ -97,6 +110,8 @@ def save_lead(new_lead):
     except Exception as e:
         st.error(f"Could not save lead: {e}")
         return False
+
+
 def update_lead_status(lead_id, new_status):
     try:
         (
@@ -106,6 +121,7 @@ def update_lead_status(lead_id, new_status):
             .eq("id", int(lead_id))
             .execute()
         )
+
         return True
 
     except Exception as e:
@@ -122,43 +138,64 @@ def delete_lead(lead_id):
             .eq("id", int(lead_id))
             .execute()
         )
+
         return True
 
     except Exception as e:
         st.error(f"Could not delete lead: {e}")
         return False
-def update_followup_notes(lead_id, follow_up_date, notes):
+
+
+def update_followup_notes(
+    lead_id,
+    follow_up_date,
+    notes
+):
     try:
         (
             supabase
             .table("leads")
-            .update({
-                "follow_up_date": str(follow_up_date),
-                "notes": notes
-            })
+            .update(
+                {
+                    "follow_up_date": str(follow_up_date),
+                    "notes": notes
+                }
+            )
             .eq("id", int(lead_id))
             .execute()
         )
+
         return True
 
     except Exception as e:
-        st.error(f"Could not update follow-up details: {e}")
+        st.error(
+            f"Could not update follow-up details: {e}"
+        )
+
         return False
+
+
 # -----------------------------
 # LEAD SCORING
 # -----------------------------
 
-def calculate_lead_score(budget, interest, source):
+def calculate_lead_score(
+    budget,
+    interest,
+    source
+):
     score = 0
 
     # Interest = maximum 50 points
-    score += interest * 5
+    score += int(interest) * 5
 
     # Budget = maximum 30 points
     if budget >= 100000:
         score += 30
+
     elif budget >= 50000:
         score += 20
+
     elif budget >= 20000:
         score += 10
 
@@ -172,12 +209,17 @@ def calculate_lead_score(budget, interest, source):
         "Other": 5
     }
 
-    score += source_points.get(source, 0)
+    score += source_points.get(
+        source,
+        0
+    )
 
     if score >= 75:
         category = "Hot 🔥"
+
     elif score >= 50:
         category = "Warm 🟡"
+
     else:
         category = "Cold ❄️"
 
@@ -188,11 +230,14 @@ def calculate_lead_score(budget, interest, source):
 # APP HEADER
 # -----------------------------
 
-st.title("📊 AI CRM & Lead Management System")
+st.title(
+    "📊 AI CRM & Lead Management System"
+)
 
 st.write(
     "Manage leads, track sales opportunities, "
-    "and prioritize customers using AI-based lead scoring."
+    "and prioritize customers using AI-based "
+    "lead scoring."
 )
 
 st.sidebar.title("Navigation")
@@ -212,6 +257,7 @@ page = st.sidebar.radio(
 # -----------------------------
 # DASHBOARD
 # -----------------------------
+
 if page == "Dashboard":
 
     st.header("Dashboard")
@@ -221,83 +267,154 @@ if page == "Dashboard":
     total_leads = len(leads)
 
     if total_leads > 0:
+
         hot_leads = len(
-            leads[leads["category"] == "Hot 🔥"]
+            leads[
+                leads["category"] == "Hot 🔥"
+            ]
         )
 
         converted_leads = len(
-            leads[leads["status"] == "Closed"]
+            leads[
+                leads["status"] == "Closed"
+            ]
         )
 
         conversion_rate = (
-            converted_leads / total_leads
+            converted_leads
+            / total_leads
         ) * 100
 
     else:
+
         hot_leads = 0
         converted_leads = 0
         conversion_rate = 0
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Total Leads", total_leads)
-    col2.metric("Hot Leads", hot_leads)
-    col3.metric("Converted Leads", converted_leads)
+    col1.metric(
+        "Total Leads",
+        total_leads
+    )
+
+    col2.metric(
+        "Hot Leads",
+        hot_leads
+    )
+
+    col3.metric(
+        "Converted Leads",
+        converted_leads
+    )
+
     col4.metric(
         "Conversion Rate",
         f"{conversion_rate:.1f}%"
     )
 
     if total_leads == 0:
+
         st.info(
-            "Add your first lead to start seeing analytics."
+            "Add your first lead to start "
+            "seeing analytics."
         )
 
     else:
-        st.subheader("Lead Sources")
 
-        source_data = leads["source"].value_counts()
-        st.bar_chart(source_data)
+        st.subheader(
+            "Lead Sources"
+        )
 
-        st.subheader("Lead Categories")
+        source_data = (
+            leads["source"]
+            .value_counts()
+        )
 
-        category_data = leads["category"].value_counts()
-        st.bar_chart(category_data)
+        st.bar_chart(
+            source_data
+        )
 
-    st.subheader("📅 Upcoming Follow-ups")
+        st.subheader(
+            "Lead Categories"
+        )
 
-    if total_leads > 0 and "follow_up_date" in leads.columns:
+        category_data = (
+            leads["category"]
+            .value_counts()
+        )
+
+        st.bar_chart(
+            category_data
+        )
+
+    st.subheader(
+        "📅 Upcoming Follow-ups"
+    )
+
+    if (
+        total_leads > 0
+        and "follow_up_date" in leads.columns
+    ):
 
         followups = leads.copy()
 
-        followups["follow_up_date"] = pd.to_datetime(
+        followups[
+            "follow_up_date"
+        ] = pd.to_datetime(
             followups["follow_up_date"],
             errors="coerce"
         )
 
-        today = pd.Timestamp(date.today())
+        today = pd.Timestamp(
+            date.today()
+        )
 
         upcoming = followups[
-            followups["follow_up_date"].notna()
-            & (followups["follow_up_date"] >= today)
-        ].sort_values("follow_up_date")
+            followups[
+                "follow_up_date"
+            ].notna()
+            &
+            (
+                followups[
+                    "follow_up_date"
+                ] >= today
+            )
+        ].sort_values(
+            "follow_up_date"
+        )
 
         if len(upcoming) == 0:
-            st.info("No upcoming follow-ups.")
+
+            st.info(
+                "No upcoming follow-ups."
+            )
 
         else:
-            for _, lead in upcoming.head(5).iterrows():
+
+            for _, lead in (
+                upcoming
+                .head(5)
+                .iterrows()
+            ):
 
                 days_left = (
-                    lead["follow_up_date"] - today
+                    lead[
+                        "follow_up_date"
+                    ]
+                    - today
                 ).days
 
                 if days_left == 0:
                     timing = "Today 🔴"
+
                 elif days_left == 1:
                     timing = "Tomorrow 🟠"
+
                 else:
-                    timing = f"In {days_left} days"
+                    timing = (
+                        f"In {days_left} days"
+                    )
 
                 st.write(
                     f"**{lead['name']}** — "
@@ -307,118 +424,291 @@ if page == "Dashboard":
                 )
 
     else:
-        st.info("No upcoming follow-ups.")
+
+        st.info(
+            "No upcoming follow-ups."
+        )
+
+
+# -----------------------------
+# ADD LEAD
+# -----------------------------
+
+elif page == "Add Lead":
+
+    st.header(
+        "Add New Lead"
+    )
+
+    with st.form(
+        "lead_form"
+    ):
+
+        name = st.text_input(
+            "Customer Name"
+        )
+
+        email = st.text_input(
+            "Email"
+        )
+
+        phone = st.text_input(
+            "Phone"
+        )
+
+        company = st.text_input(
+            "Company"
+        )
+
+        source = st.selectbox(
+            "Lead Source",
+            [
+                "Website",
+                "Instagram",
+                "LinkedIn",
+                "Referral",
+                "Cold Call",
+                "Other"
+            ]
+        )
+
+        budget = st.number_input(
+            "Budget",
+            min_value=0.0,
+            step=1000.0
+        )
+
+        interest = st.slider(
+            "Interest Level",
+            min_value=1,
+            max_value=10,
+            value=5
+        )
+
+        submitted = (
+            st.form_submit_button(
+                "Add Lead"
+            )
+        )
+
+        if submitted:
+
+            if not name.strip():
+
+                st.warning(
+                    "Customer name is required."
+                )
+
+            else:
+
+                score, category = (
+                    calculate_lead_score(
+                        budget,
+                        interest,
+                        source
+                    )
+                )
+
+                new_lead = {
+                    "name": name.strip(),
+                    "email": email.strip(),
+                    "phone": phone.strip(),
+                    "company": company.strip(),
+                    "source": source,
+                    "budget": float(budget),
+                    "interest": int(interest),
+                    "status": "New",
+                    "score": int(score),
+                    "category": category
+                }
+
+                if save_lead(
+                    new_lead
+                ):
+
+                    st.success(
+                        "Lead added successfully."
+                    )
+
+                    st.rerun()
 
 
 # -----------------------------
 # LEAD DATABASE
 # -----------------------------
+
 elif page == "Lead Database":
 
-    st.header("Lead Database")
+    st.header(
+        "Lead Database"
+    )
 
     leads = load_leads()
 
     if len(leads) == 0:
-        st.info("No leads have been added yet.")
+
+        st.info(
+            "No leads have been added yet."
+        )
 
     else:
-        st.subheader("Search & Filters")
+
+        st.subheader(
+            "Search & Filters"
+        )
 
         search = st.text_input(
             "Search by customer name or company",
-            placeholder="Type a name or company..."
+            placeholder=(
+                "Type a name or company..."
+            )
         )
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = (
+            st.columns(3)
+        )
 
         with col1:
-            status_filter = st.selectbox(
-                "Status",
-                [
-                    "All",
-                    "New",
-                    "Contacted",
-                    "Negotiation",
-                    "Closed"
-                ]
+
+            status_filter = (
+                st.selectbox(
+                    "Status",
+                    [
+                        "All",
+                        "New",
+                        "Contacted",
+                        "Negotiation",
+                        "Closed"
+                    ]
+                )
             )
 
         with col2:
-            category_filter = st.selectbox(
-                "Category",
-                [
-                    "All",
-                    "Hot 🔥",
-                    "Warm 🟡",
-                    "Cold ❄️"
-                ]
+
+            category_filter = (
+                st.selectbox(
+                    "Category",
+                    [
+                        "All",
+                        "Hot 🔥",
+                        "Warm 🟡",
+                        "Cold ❄️"
+                    ]
+                )
             )
 
         with col3:
-            source_filter = st.selectbox(
-                "Lead Source",
-                [
-                    "All",
-                    "Website",
-                    "Instagram",
-                    "LinkedIn",
-                    "Referral",
-                    "Cold Call",
-                    "Other"
-                ]
+
+            source_filter = (
+                st.selectbox(
+                    "Lead Source",
+                    [
+                        "All",
+                        "Website",
+                        "Instagram",
+                        "LinkedIn",
+                        "Referral",
+                        "Cold Call",
+                        "Other"
+                    ]
+                )
             )
 
-filtered_leads = leads.copy()
+        filtered_leads = (
+            leads.copy()
+        )
 
-filtered_leads["ml_conversion_probability"] = filtered_leads.apply(
-            lambda row: predict_conversion_probability(
-                row["budget"],
-                row["interest"],
-                row["source"]
+        filtered_leads[
+            "ml_conversion_probability"
+        ] = filtered_leads.apply(
+            lambda row: (
+                predict_conversion_probability(
+                    row["budget"],
+                    row["interest"],
+                    row["source"]
+                )
             ),
             axis=1
         )
-filtered_leads["ml_conversion_probability"] = (
-            filtered_leads["ml_conversion_probability"]
-            .round(1)
-            .astype(str)
-            + "%"
+
+        filtered_leads[
+            "ml_conversion_probability"
+        ] = filtered_leads[
+            "ml_conversion_probability"
+        ].apply(
+            lambda value: (
+                f"{value:.1f}%"
+                if (
+                    value is not None
+                    and pd.notna(value)
+                )
+                else "N/A"
+            )
         )
 
-if search:
-            search_lower = search.lower()
+        if search:
 
-            filtered_leads = filtered_leads[
-                filtered_leads["name"]
-                .fillna("")
-                .str.lower()
-                .str.contains(search_lower, regex=False)
-                |
-                filtered_leads["company"]
-                .fillna("")
-                .str.lower()
-                .str.contains(search_lower, regex=False)
-            ]
+            search_lower = (
+                search.lower()
+            )
 
-if status_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["status"] == status_filter
-            ]
+            filtered_leads = (
+                filtered_leads[
+                    filtered_leads[
+                        "name"
+                    ]
+                    .fillna("")
+                    .str.lower()
+                    .str.contains(
+                        search_lower,
+                        regex=False
+                    )
+                    |
+                    filtered_leads[
+                        "company"
+                    ]
+                    .fillna("")
+                    .str.lower()
+                    .str.contains(
+                        search_lower,
+                        regex=False
+                    )
+                ]
+            )
 
-if category_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["category"] == category_filter
-            ]
+        if status_filter != "All":
 
-if source_filter != "All":
-            filtered_leads = filtered_leads[
-                filtered_leads["source"] == source_filter
-            ]
+            filtered_leads = (
+                filtered_leads[
+                    filtered_leads[
+                        "status"
+                    ] == status_filter
+                ]
+            )
+
+        if category_filter != "All":
+
+            filtered_leads = (
+                filtered_leads[
+                    filtered_leads[
+                        "category"
+                    ] == category_filter
+                ]
+            )
+
+        if source_filter != "All":
+
+            filtered_leads = (
+                filtered_leads[
+                    filtered_leads[
+                        "source"
+                    ] == source_filter
+                ]
+            )
 
         st.write(
-            f"Showing **{len(filtered_leads)}** of "
-            f"**{len(leads)}** leads"
+            f"Showing **{len(filtered_leads)}** "
+            f"of **{len(leads)}** leads"
         )
 
         display_columns = [
@@ -435,89 +725,158 @@ if source_filter != "All":
             "notes"
         ]
 
+        available_columns = [
+            column
+            for column
+            in display_columns
+            if column
+            in filtered_leads.columns
+        ]
+
         st.dataframe(
-            filtered_leads[display_columns],
+            filtered_leads[
+                available_columns
+            ],
             use_container_width=True,
             hide_index=True
         )
+
+
+# -----------------------------
+# MANAGE LEADS
+# -----------------------------
+
 elif page == "Manage Leads":
 
-    st.header("Manage Leads")
+    st.header(
+        "Manage Leads"
+    )
 
     leads = load_leads()
 
     if len(leads) == 0:
-        st.info("No leads available to manage.")
 
-    else:
-        lead_options = {
-            f"{row['name']} - {row['company']} - ID {row['id']}": row["id"]
-            for _, row in leads.iterrows()
-        }
-
-        selected_label = st.selectbox(
-            "Select Lead",
-            list(lead_options.keys())
+        st.info(
+            "No leads available to manage."
         )
 
-        selected_id = lead_options[selected_label]
+    else:
+
+        lead_options = {
+            (
+                f"{row['name']} - "
+                f"{row['company']} - "
+                f"ID {row['id']}"
+            ): row["id"]
+            for _, row
+            in leads.iterrows()
+        }
+
+        selected_label = (
+            st.selectbox(
+                "Select Lead",
+                list(
+                    lead_options.keys()
+                )
+            )
+        )
+
+        selected_id = (
+            lead_options[
+                selected_label
+            ]
+        )
 
         selected_lead = leads[
-            leads["id"] == selected_id
+            leads["id"]
+            == selected_id
         ].iloc[0]
 
-        st.subheader(selected_lead["name"])
+        st.subheader(
+            selected_lead["name"]
+        )
 
-        col1, col2 = st.columns(2)
+        col1, col2 = (
+            st.columns(2)
+        )
 
         with col1:
+
             st.write(
-                f"**Company:** {selected_lead['company']}"
+                f"**Company:** "
+                f"{selected_lead['company']}"
             )
+
             st.write(
-                f"**Email:** {selected_lead['email']}"
+                f"**Email:** "
+                f"{selected_lead['email']}"
             )
+
             st.write(
-                f"**Phone:** {selected_lead['phone']}"
+                f"**Phone:** "
+                f"{selected_lead['phone']}"
             )
+
             st.write(
-                f"**Source:** {selected_lead['source']}"
+                f"**Source:** "
+                f"{selected_lead['source']}"
             )
 
         with col2:
+
             st.write(
-                f"**Budget:** ₹{float(selected_lead['budget']):,.0f}"
-            )
-            st.write(
-                f"**Interest:** {selected_lead['interest']}/10"
-            )
-            st.write(
-                f"**Score:** {selected_lead['score']}/100"
-            )
-            st.write(
-                f"**Category:** {selected_lead['category']}"
+                f"**Budget:** "
+                f"₹{float(selected_lead['budget']):,.0f}"
             )
 
-        conversion_probability = predict_conversion_probability(
-            selected_lead["budget"],
-            selected_lead["interest"],
-            selected_lead["source"]
+            st.write(
+                f"**Interest:** "
+                f"{selected_lead['interest']}/10"
+            )
+
+            st.write(
+                f"**Score:** "
+                f"{selected_lead['score']}/100"
+            )
+
+            st.write(
+                f"**Category:** "
+                f"{selected_lead['category']}"
+            )
+
+        conversion_probability = (
+            predict_conversion_probability(
+                selected_lead["budget"],
+                selected_lead["interest"],
+                selected_lead["source"]
+            )
         )
 
-        if conversion_probability is not None:
+        if (
+            conversion_probability
+            is not None
+        ):
+
             st.metric(
                 "🤖 ML Conversion Probability",
                 f"{conversion_probability:.1f}%"
             )
 
             st.caption(
-                "Demo prediction trained on synthetic historical lead data."
+                "Demo prediction trained on "
+                "synthetic historical lead data."
             )
 
         st.divider()
 
-        # Update Status
-        st.subheader("Update Lead Status")
+
+        # -----------------------------
+        # UPDATE STATUS
+        # -----------------------------
+
+        st.subheader(
+            "Update Lead Status"
+        )
 
         status_options = [
             "New",
@@ -526,186 +885,101 @@ elif page == "Manage Leads":
             "Closed"
         ]
 
-        current_status = selected_lead["status"]
+        current_status = (
+            selected_lead["status"]
+        )
 
         current_index = (
-            status_options.index(current_status)
-            if current_status in status_options
+            status_options.index(
+                current_status
+            )
+            if current_status
+            in status_options
             else 0
         )
 
-        new_status = st.selectbox(
-            "Lead Status",
-            status_options,
-            index=current_index
-        )
-
-        if st.button("Update Status"):
-
-            success = update_lead_status(
-                selected_id,
-                new_status
+        new_status = (
+            st.selectbox(
+                "Lead Status",
+                status_options,
+                index=current_index
             )
-
-            if success:
-                st.success(
-                    f"Status updated to {new_status}."
-                )
-                st.rerun()
-
-        st.divider()
-
-        # Follow-up and Notes
-        st.subheader("Follow-up & Notes")
-
-        existing_date = selected_lead.get(
-            "follow_up_date"
-        )
-
-        if existing_date and not pd.isna(existing_date):
-            parsed_date = pd.to_datetime(
-                existing_date,
-                errors="coerce"
-            )
-
-            if pd.notna(parsed_date):
-                default_followup = parsed_date.date()
-            else:
-                default_followup = date.today()
-        else:
-            default_followup = date.today()
-
-        follow_up_date = st.date_input(
-            "Follow-up Date",
-            value=default_followup
-        )
-
-        existing_notes = selected_lead.get(
-            "notes"
-        )
-
-        if pd.isna(existing_notes):
-            existing_notes = ""
-
-        notes = st.text_area(
-            "Notes",
-            value=str(existing_notes),
-            placeholder=(
-                "Add conversation notes, next steps, "
-                "customer requirements..."
-            )
-        )
-
-        if st.button("Save Follow-up Details"):
-
-            try:
-                (
-                    supabase
-                    .table("leads")
-                    .update(
-                        {
-                            "follow_up_date": str(
-                                follow_up_date
-                            ),
-                            "notes": notes
-                        }
-                    )
-                    .eq(
-                        "id",
-                        int(selected_id)
-                    )
-                    .execute()
-                )
-
-                st.success(
-                    "Follow-up date and notes saved successfully."
-                )
-
-                st.rerun()
-
-            except Exception as e:
-                st.error(
-                    f"Could not save follow-up details: {e}"
-                )
-
-        st.divider()
-
-        # Delete Lead
-        st.subheader("Delete Lead")
-
-        confirm_delete = st.checkbox(
-            "I understand this will permanently delete this lead."
         )
 
         if st.button(
-            "Delete Lead",
-            disabled=not confirm_delete
+            "Update Status"
         ):
 
-            success = delete_lead(
-                selected_id
+            success = (
+                update_lead_status(
+                    selected_id,
+                    new_status
+                )
             )
 
             if success:
+
                 st.success(
-                    "Lead deleted successfully."
+                    f"Status updated "
+                    f"to {new_status}."
                 )
+
                 st.rerun()
 
+        st.divider()
 
-elif page == "Sales Pipeline":
 
-    st.header("Sales Pipeline")
+        # -----------------------------
+        # FOLLOW-UP AND NOTES
+        # -----------------------------
 
-    leads = load_leads()
+        st.subheader(
+            "Follow-up & Notes"
+        )
 
-    col1, col2, col3, col4 = st.columns(4)
+        existing_date = (
+            selected_lead.get(
+                "follow_up_date"
+            )
+        )
 
-    stages = [
-        ("New", col1),
-        ("Contacted", col2),
-        ("Negotiation", col3),
-        ("Closed", col4)
-    ]
+        if (
+            existing_date
+            and not pd.isna(
+                existing_date
+            )
+        ):
 
-    for stage, column in stages:
+            parsed_date = (
+                pd.to_datetime(
+                    existing_date,
+                    errors="coerce"
+                )
+            )
 
-        with column:
+            if pd.notna(
+                parsed_date
+            ):
 
-            st.subheader(stage)
-
-            if len(leads) == 0:
-                st.caption("No leads")
-                continue
-
-            stage_leads = leads[
-                leads["status"] == stage
-            ]
-
-            if len(stage_leads) == 0:
-
-                st.caption("No leads")
+                default_followup = (
+                    parsed_date.date()
+                )
 
             else:
 
-                for _, lead in stage_leads.iterrows():
+                default_followup = (
+                    date.today()
+                )
 
-                    st.markdown(
-                        f"""
-**{lead['name']}**
+        else:
 
-{lead['company']}
+            default_followup = (
+                date.today()
+            )
 
-Budget: ₹{float(lead['budget']):,.0f}
-
-Interest: {lead['interest']}/10
-
-Score: {lead['score']}/100
-
-{lead['category']}
-"""
-                    )
-
-                    st.divider()
-
-        
+        follow_up_date = (
+            st.date_input(
+                "Follow-up Date",
+                value=default_followup
+            )
+        )
