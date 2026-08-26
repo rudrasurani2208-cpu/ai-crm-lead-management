@@ -401,17 +401,17 @@ if search:
                 .str.contains(search_lower, regex=False)
             ]
 
-        if status_filter != "All":
+if status_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["status"] == status_filter
             ]
 
-        if category_filter != "All":
+if category_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["category"] == category_filter
             ]
 
-        if source_filter != "All":
+if source_filter != "All":
             filtered_leads = filtered_leads[
                 filtered_leads["source"] == source_filter
             ]
